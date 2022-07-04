@@ -65,7 +65,7 @@ const int BUZZER = 13;
 void setState() {
   digitalWrite(LED_WAITING, deviceConnected ? LOW : HIGH);
   digitalWrite(LED_CONNECTED, deviceConnected ? HIGH : LOW);
-  tone(BUZZER, deviceConnected ? 440 : 220, 250);
+  tone(BUZZER, deviceConnected ? 440 : 150, 250);
 }
 
 void setup() {
