@@ -25,7 +25,7 @@
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pBatteryLevelCharacteristic = NULL;
-BLECharacteristic* pCharacteristic = NULL;
+BLECharacteristic* pCountCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 uint32_t value = 0;
@@ -96,7 +96,7 @@ void setup() {
   BLEService *pService = pServer->createService(fitnessServiceUUID);
 
   // Create a BLE Characteristic
-  pCharacteristic = pService->createCharacteristic(
+  pCountCharacteristic = pService->createCharacteristic(
                       countCharacteristicUUID,
                       BLECharacteristic::PROPERTY_READ   |
                       BLECharacteristic::PROPERTY_WRITE  |
@@ -106,17 +106,17 @@ void setup() {
 
   // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
   // Create a BLE Descriptor
-  pCharacteristic->addDescriptor(new BLE2902());
+  pCountCharacteristic->addDescriptor(new BLE2902());
 
   BLE2904* pCountDescriptor = new BLE2904();
   pCountDescriptor->setFormat(BLE2904::FORMAT_SINT32);
   pCountDescriptor->setUnit(0x2702);
 
-  pCharacteristic->addDescriptor(pCountDescriptor);
+  pCountCharacteristic->addDescriptor(pCountDescriptor);
 
   BLEDescriptor* pCountDescriptionDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901), 8);
   pCountDescriptionDescriptor->setValue("Count");
-  pCharacteristic->addDescriptor(pCountDescriptionDescriptor);
+  pCountCharacteristic->addDescriptor(pCountDescriptionDescriptor);
 
   // Start the service(s)
   pService->start();
@@ -138,8 +138,8 @@ void setup() {
 void loop() {
     // notify changed value
     if (deviceConnected) {
-        pCharacteristic->setValue((uint8_t*)&value, 4);
-        pCharacteristic->notify();
+        pCountCharacteristic->setValue((uint8_t*)&value, 4);
+        pCountCharacteristic->notify();
         value++;
 
         delay(3); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
