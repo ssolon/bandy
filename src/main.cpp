@@ -55,8 +55,8 @@ class MyServerCallbacks: public BLEServerCallbacks {
 };
 
 const int threshold = 30;
-const int LED_RED = 22;
-const int LED_GREEN = 21;
+const int LED_RED = 16;
+const int LED_GREEN = 17;
 const int LED_WAITING = LED_RED;
 const int LED_CONNECTED = LED_GREEN;
 
