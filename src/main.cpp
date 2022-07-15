@@ -22,6 +22,8 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 #include <BLE2904.h>
+#include <HX711_ADC.h>
+#include "LoadCell.h"
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pBatteryLevelCharacteristic = NULL;
@@ -36,6 +38,8 @@ uint8_t batteryLevel = 80;
 
 #define SERVICE_UUID        "(uint16_t)0x1826" //"9b3116d8-f7e0-11ec-b939-0242ac120002"
 #define CHARACTERISTIC_UUID "a6351a0c-f7e0-11ec-b939-0242ac120002"
+
+const  uint16_t GATT_UNIT_MASS_KILOGRAM = (uint16_t) 0x2702;
 
 const BLEUUID batteryServiceUUID = BLEUUID((uint16_t) 0x180f);
 const BLEUUID batteryLevelUUID = BLEUUID((uint16_t) 0x2a19);
@@ -54,13 +58,35 @@ class MyServerCallbacks: public BLEServerCallbacks {
     }
 };
 
+//pins:
 const int threshold = 30;
 const int LED_RED = 16;
 const int LED_GREEN = 17;
+const int HX711_dout = 23; //mcu > HX711 dout pin
+const int HX711_sck = 22; //mcu > HX711 sck pin
+
 const int LED_WAITING = LED_RED;
 const int LED_CONNECTED = LED_GREEN;
 
 const int BUZZER = 13;
+
+LoadCell* loadCell;
+
+// Values are scaled
+uint8_t valueScale = 1;
+
+// Last value read (but maybe not sent?)
+float lastValue = 0;
+int16_t notifyValue = 0;
+
+// Millis at last value handled (but maybe not sent?)
+long lastMillis;
+
+// We only care about limited precision in our readings so fix so all match
+float fixValue(float value) {
+  int adjust = valueScale * 10;
+  return std::ceil(value * adjust)/adjust;
+}
 
 void setState() {
   digitalWrite(LED_WAITING, deviceConnected ? LOW : HIGH);
@@ -73,6 +99,9 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(LED_WAITING, OUTPUT);
   pinMode(LED_CONNECTED, OUTPUT);
+
+  // Setup load cell
+  loadCell = new LoadCellHX711ADC(HX711_dout, HX711_sck);
 
   // Create the BLE Device
   BLEDevice::init("Bandy");
@@ -109,13 +138,13 @@ void setup() {
   pCountCharacteristic->addDescriptor(new BLE2902());
 
   BLE2904* pCountDescriptor = new BLE2904();
-  pCountDescriptor->setFormat(BLE2904::FORMAT_SINT32);
-  pCountDescriptor->setUnit(0x2702);
-
+  pCountDescriptor->setFormat(BLE2904::FORMAT_SINT16);
+  pCountDescriptor->setUnit(GATT_UNIT_MASS_KILOGRAM);
+  pCountDescriptor->setExponent(-valueScale);
   pCountCharacteristic->addDescriptor(pCountDescriptor);
 
   BLEDescriptor* pCountDescriptionDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901), 8);
-  pCountDescriptionDescriptor->setValue("Count");
+  pCountDescriptionDescriptor->setValue("Resist");
   pCountCharacteristic->addDescriptor(pCountDescriptionDescriptor);
 
   // Start the service(s)
@@ -132,34 +161,50 @@ void setup() {
 
   Serial.println("Waiting a client connection to notify...");
   setState();
+  lastMillis = millis();
 }
 
 
 void loop() {
-    // notify changed value
-    if (deviceConnected) {
-        pCountCharacteristic->setValue((uint8_t*)&value, 4);
-        pCountCharacteristic->notify();
-        value++;
-
-        delay(3); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
-    }
-    // disconnecting
-    if (!deviceConnected && oldDeviceConnected) {
-        setState();
-        delay(500); // give the bluetooth stack the chance to get things ready
-        pServer->startAdvertising(); // restart advertising
-        Serial.println("Restart advertising");
-        oldDeviceConnected = deviceConnected;
-    }
-    // connecting
-    if (deviceConnected && !oldDeviceConnected) {
+  
+  // disconnecting
+  if (!deviceConnected && oldDeviceConnected) {
+    setState();
+    delay(500); // give the bluetooth stack the chance to get things ready
+    pServer->startAdvertising(); // restart advertising
+    Serial.println("Restart advertising");
+    oldDeviceConnected = deviceConnected;
+  }
+  
+  // connecting
+  if (deviceConnected && !oldDeviceConnected) {
         // do stuff here on connecting
         Serial.println("Client connected");
         oldDeviceConnected = deviceConnected;
         setState();
+  }
+  //!!!! Test out touch
+  digitalWrite(LED_BUILTIN, touchRead(T0) < threshold ? HIGH : LOW);
+
+  // Get a scale reading if ready
+
+  float* nextValue = loadCell->getData();
+  if (nextValue) {
+    float fixedNextValue = fixValue(*nextValue);
+    if (lastValue != fixedNextValue) {
+      Serial.printf("%ld Data = %f\n", millis() - lastMillis, fixedNextValue);
+      lastValue = fixedNextValue;
+      lastMillis = millis();
+
+      // notify changed value
+      if (deviceConnected) {
+        notifyValue = std::round(lastValue * valueScale * 10);
+        pCountCharacteristic->setValue((uint8_t*)&notifyValue, 2);
+        pCountCharacteristic->notify();
+        delay(3); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
+      }
     }
-    //!!!! Test out touch
-    digitalWrite(LED_BUILTIN, touchRead(T0) < threshold ? HIGH : LOW);
-    delay(500);
+  }
+
+  // delay(500);
 }
