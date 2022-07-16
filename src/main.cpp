@@ -70,7 +70,7 @@ const int LED_CONNECTED = LED_GREEN;
 
 const int BUZZER = 13;
 
-LoadCell* loadCell;
+LoadCell* pLoadCell;
 
 // Values are scaled
 uint8_t valueScale = 1;
@@ -101,7 +101,7 @@ void setup() {
   pinMode(LED_CONNECTED, OUTPUT);
 
   // Setup load cell
-  loadCell = new LoadCellHX711ADC(HX711_dout, HX711_sck);
+  pLoadCell = new LoadCellHX711ADC(HX711_dout, HX711_sck);
 
   // Create the BLE Device
   BLEDevice::init("Bandy");
@@ -188,7 +188,7 @@ void loop() {
 
   // Get a scale reading if ready
 
-  float* nextValue = loadCell->getData();
+  float* nextValue = pLoadCell->getData();
   if (nextValue) {
     float fixedNextValue = fixValue(*nextValue);
     if (lastValue != fixedNextValue) {

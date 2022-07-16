@@ -14,7 +14,7 @@ class LoadCell {
 };
 
 class LoadCellHX711ADC : public LoadCell {
-  HX711_ADC* loadCell;
+  HX711_ADC* pLoadCell;
   float returnValue;
 
   public:
