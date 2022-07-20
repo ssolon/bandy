@@ -45,7 +45,7 @@ const BLEUUID batteryServiceUUID = BLEUUID((uint16_t) 0x180f);
 const BLEUUID batteryLevelUUID = BLEUUID((uint16_t) 0x2a19);
 
 const BLEUUID fitnessServiceUUID = BLEUUID((uint16_t)0x1826);
-const BLEUUID countCharacteristicUUID = BLEUUID((uint16_t) 0x2aeb);
+const BLEUUID resistanceCharacteristicUUID = BLEUUID("a6351a0c-f7e0-11ec-b939-0242ac120002");
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
@@ -126,9 +126,8 @@ void setup() {
 
   // Create a BLE Characteristic
   pCountCharacteristic = pService->createCharacteristic(
-                      countCharacteristicUUID,
+                      resistanceCharacteristicUUID,
                       BLECharacteristic::PROPERTY_READ   |
-                      BLECharacteristic::PROPERTY_WRITE  |
                       BLECharacteristic::PROPERTY_NOTIFY |
                       BLECharacteristic::PROPERTY_INDICATE
                     );
