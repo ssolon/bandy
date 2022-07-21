@@ -24,6 +24,7 @@ class LoadCellHX711ADC : public LoadCell {
 
   virtual void tare() {
     Serial.println("Tare called");
+    pLoadCell->tare();
   }
 
   LoadCellHX711ADC(uint8_t clockPin, uint8_t dataPin);

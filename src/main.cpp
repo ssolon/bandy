@@ -23,11 +23,14 @@
 #include <BLE2902.h>
 #include <BLE2904.h>
 #include <HX711_ADC.h>
+#include <ezButton.h>
+
 #include "LoadCell.h"
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pBatteryLevelCharacteristic = NULL;
 BLECharacteristic* pCountCharacteristic = NULL;
+
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 uint32_t value = 0;
@@ -62,8 +65,11 @@ class MyServerCallbacks: public BLEServerCallbacks {
 const int threshold = 30;
 const int LED_RED = 16;
 const int LED_GREEN = 17;
+
 const int HX711_dout = 23; //mcu > HX711 dout pin
 const int HX711_sck = 22; //mcu > HX711 sck pin
+
+const int TARE_REQUEST = 32;
 
 const int LED_WAITING = LED_RED;
 const int LED_CONNECTED = LED_GREEN;
@@ -71,6 +77,7 @@ const int LED_CONNECTED = LED_GREEN;
 const int BUZZER = 13;
 
 LoadCell* pLoadCell;
+ezButton tareRequestButton(TARE_REQUEST);
 
 // Values are scaled
 uint8_t valueScale = 1;
@@ -99,6 +106,9 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(LED_WAITING, OUTPUT);
   pinMode(LED_CONNECTED, OUTPUT);
+
+  pinMode(TARE_REQUEST, INPUT_PULLUP);
+  tareRequestButton.setDebounceTime(50);
 
   // Setup load cell
   pLoadCell = new LoadCellHX711ADC(HX711_dout, HX711_sck);
@@ -183,7 +193,13 @@ void loop() {
         setState();
   }
   //!!!! Test out touch
-  digitalWrite(LED_BUILTIN, touchRead(T0) < threshold ? HIGH : LOW);
+  //digitalWrite(LED_BUILTIN, touchRead(T0) < threshold ? HIGH : LOW);
+
+  // Check for Tare request
+  tareRequestButton.loop();
+  if (tareRequestButton.isPressed()) {
+    pLoadCell->tare();
+  }
 
   // Get a scale reading if ready
 
@@ -205,5 +221,6 @@ void loop() {
     }
   }
 
+  // TODO Come up with a good value for this
   // delay(500);
 }
