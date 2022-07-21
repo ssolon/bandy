@@ -33,7 +33,7 @@ BLECharacteristic* pCountCharacteristic = NULL;
 
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
-uint32_t value = 0;
+
 uint8_t batteryLevel = 80;
 
 // See the following for generating UUIDs:
