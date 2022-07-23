@@ -85,7 +85,6 @@ LoadCell* pLoadCell;
 ezButton tareRequestButton(TARE_REQUEST);
 
 // Tilt stuff
-//ezButton tiltSensor(TILT);
 int lastTiltRead=0;
 long lastTiltTime=0;
 const int tiltDebounce = 100;
@@ -119,8 +118,8 @@ void setup() {
   pinMode(LED_CONNECTED, OUTPUT);
 
   pinMode(TILT, INPUT_PULLUP);
-  //tiltSensor.setDebounceTime(50);
 
+  // Setup tare request
   pinMode(TARE_REQUEST, INPUT_PULLDOWN);
   tareRequestButton.setDebounceTime(500);
 
@@ -239,16 +238,8 @@ void loop() {
 
   // Check the tile
   // We only care about a change in tilt
-  // TODO Debounce
-
-  // int newTiltRead = digitalRead(TILT);
-  // if (lastTiltRead != newTiltRead) {
-  //   Serial.printf("%ld __ Tilt %d __\n", millis(), newTiltRead);
-  //   lastTiltRead = newTiltRead;
-  // }
 
   int newTiltRead = digitalRead(TILT);
-  // Serial.printf("%ld lastTilt=%d newTilt=%d\n", millis(), lastTilt, newTilt);
 
   if (lastTiltRead != newTiltRead && (millis() - lastTiltTime) > tiltDebounce) {
       lastTiltRead = newTiltRead;
@@ -256,18 +247,6 @@ void loop() {
       Serial.printf("%ld ____ Tilted ____\n", millis());
       digitalWrite(BUILTIN_LED, LOW);
   }
-
-  // tiltSensor.loop();
-  // if (tiltSensor.isPressed()) {
-  //   Serial.printf("%ld ~~~~ Tilted ~~~~", millis());
-  // }
-
-  // int newTilt = tiltSensor.getState();
-  // if (newTilt != lastTilt) {
-  //   Serial.printf("%ld !!! Tilt !!!\n", millis());
-  //   lastTilt = newTilt;
-  //   digitalWrite(BUILTIN_LED, LOW);
-  // }
 
   // Sleep if we've been quiet for too long
   if (millis() - lastMillis > sleepTimeoutMillis) {
