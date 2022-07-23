@@ -111,6 +111,19 @@ void setState() {
   tone(BUZZER, deviceConnected ? 440 : 150, 250);
 }
 
+bool tilt() {
+  int newTiltRead = digitalRead(TILT);
+  bool tilt = false;
+
+  if (lastTiltRead != newTiltRead && (millis() - lastTiltTime) > tiltDebounce) {
+      lastTiltRead = newTiltRead;
+      lastTiltTime = millis();
+      tilt = true;
+  }
+
+  return tilt;
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
@@ -236,18 +249,13 @@ void loop() {
     }
   }
 
-  // Check the tile
+  // Check the tilt
   // We only care about a change in tilt
-
-  int newTiltRead = digitalRead(TILT);
-
-  if (lastTiltRead != newTiltRead && (millis() - lastTiltTime) > tiltDebounce) {
-      lastTiltRead = newTiltRead;
-      lastTiltTime = millis();
-      Serial.printf("%ld ____ Tilted ____\n", millis());
+  if (tilt()) {
+      Serial.printf("%ld ____ Tilt ____\n", millis());
       digitalWrite(BUILTIN_LED, LOW);
   }
-
+  
   // Sleep if we've been quiet for too long
   if (millis() - lastMillis > sleepTimeoutMillis) {
   //   // esp_deep_sleep_start();
