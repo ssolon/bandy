@@ -133,8 +133,8 @@ void setup() {
   pinMode(TILT, INPUT_PULLUP);
 
   // Setup tare request
-  pinMode(TARE_REQUEST, INPUT_PULLDOWN);
-  tareRequestButton.setDebounceTime(500);
+  pinMode(TARE_REQUEST, INPUT_PULLUP);
+  tareRequestButton.setDebounceTime(10);
 
   // Setup load cell
   pLoadCell = new LoadCellHX711ADC(HX711_dout, HX711_sck);
@@ -226,6 +226,7 @@ void loop() {
   // Check for Tare request
   tareRequestButton.loop();
   if (tareRequestButton.isPressed()) {
+    printf("%ld Tare requested\n", millis());
     pLoadCell->tare();
   }
 
@@ -252,7 +253,7 @@ void loop() {
   // Check the tilt
   // We only care about a change in tilt
   if (tilt()) {
-      Serial.printf("%ld ____ Tilt ____\n", millis());
+      // Serial.printf("%ld ____ Tilt ____\n", millis());
       digitalWrite(BUILTIN_LED, LOW);
   }
   
