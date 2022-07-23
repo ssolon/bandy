@@ -34,7 +34,11 @@ BLECharacteristic* pCountCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 
+// Dummy value for testing characteristic
 uint8_t batteryLevel = 80;
+
+// Timeout value for sleep
+const uint16_t sleepTimeoutMillis = 10 * 1000;
 
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -70,6 +74,7 @@ const int HX711_dout = 23; //mcu > HX711 dout pin
 const int HX711_sck = 22; //mcu > HX711 sck pin
 
 const int TARE_REQUEST = 32;
+const int TILT = 33;
 
 const int LED_WAITING = LED_RED;
 const int LED_CONNECTED = LED_GREEN;
@@ -78,6 +83,12 @@ const int BUZZER = 13;
 
 LoadCell* pLoadCell;
 ezButton tareRequestButton(TARE_REQUEST);
+
+// Tilt stuff
+//ezButton tiltSensor(TILT);
+int lastTiltRead=0;
+long lastTiltTime=0;
+const int tiltDebounce = 100;
 
 // Values are scaled
 uint8_t valueScale = 1;
@@ -107,8 +118,11 @@ void setup() {
   pinMode(LED_WAITING, OUTPUT);
   pinMode(LED_CONNECTED, OUTPUT);
 
-  pinMode(TARE_REQUEST, INPUT_PULLUP);
-  tareRequestButton.setDebounceTime(50);
+  pinMode(TILT, INPUT_PULLUP);
+  //tiltSensor.setDebounceTime(50);
+
+  pinMode(TARE_REQUEST, INPUT_PULLDOWN);
+  tareRequestButton.setDebounceTime(500);
 
   // Setup load cell
   pLoadCell = new LoadCellHX711ADC(HX711_dout, HX711_sck);
@@ -137,9 +151,10 @@ void setup() {
   // Create a BLE Characteristic
   pCountCharacteristic = pService->createCharacteristic(
                       resistanceCharacteristicUUID,
-                      BLECharacteristic::PROPERTY_READ   |
-                      BLECharacteristic::PROPERTY_NOTIFY |
-                      BLECharacteristic::PROPERTY_INDICATE
+                      // BLECharacteristic::PROPERTY_READ   |
+                      // BLECharacteristic::PROPERTY_WRITE  |
+                      BLECharacteristic::PROPERTY_NOTIFY //|
+                      // BLECharacteristic::PROPERTY_INDICATE
                     );
 
   // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
@@ -191,6 +206,7 @@ void loop() {
         Serial.println("Client connected");
         oldDeviceConnected = deviceConnected;
         setState();
+        lastValue = 0.0; // Trigger the first update -- but it doesn't seem to work
   }
   //!!!! Test out touch
   //digitalWrite(LED_BUILTIN, touchRead(T0) < threshold ? HIGH : LOW);
@@ -219,6 +235,45 @@ void loop() {
         delay(3); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
       }
     }
+  }
+
+  // Check the tile
+  // We only care about a change in tilt
+  // TODO Debounce
+
+  // int newTiltRead = digitalRead(TILT);
+  // if (lastTiltRead != newTiltRead) {
+  //   Serial.printf("%ld __ Tilt %d __\n", millis(), newTiltRead);
+  //   lastTiltRead = newTiltRead;
+  // }
+
+  int newTiltRead = digitalRead(TILT);
+  // Serial.printf("%ld lastTilt=%d newTilt=%d\n", millis(), lastTilt, newTilt);
+
+  if (lastTiltRead != newTiltRead && (millis() - lastTiltTime) > tiltDebounce) {
+      lastTiltRead = newTiltRead;
+      lastTiltTime = millis();
+      Serial.printf("%ld ____ Tilted ____\n", millis());
+      digitalWrite(BUILTIN_LED, LOW);
+  }
+
+  // tiltSensor.loop();
+  // if (tiltSensor.isPressed()) {
+  //   Serial.printf("%ld ~~~~ Tilted ~~~~", millis());
+  // }
+
+  // int newTilt = tiltSensor.getState();
+  // if (newTilt != lastTilt) {
+  //   Serial.printf("%ld !!! Tilt !!!\n", millis());
+  //   lastTilt = newTilt;
+  //   digitalWrite(BUILTIN_LED, LOW);
+  // }
+
+  // Sleep if we've been quiet for too long
+  if (millis() - lastMillis > sleepTimeoutMillis) {
+  //   // esp_deep_sleep_start();
+    lastMillis = millis();
+    digitalWrite(BUILTIN_LED, HIGH);
   }
 
   // TODO Come up with a good value for this
