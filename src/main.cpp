@@ -89,20 +89,34 @@ int lastTiltRead=0;
 long lastTiltTime=0;
 const int tiltDebounce = 100;
 
+// Type for values
+typedef int16_t value_t;
+
 // Values are scaled
-uint8_t valueScale = 1;
+const uint8_t valueScale = 10;
+const value_t EPSILON = std::round(0.1f * valueScale);
 
 // Last value read (but maybe not sent?)
-float lastValue = 0;
-int16_t notifyValue = 0;
+value_t lastValue = 0;
+value_t notifyValue = 0;
 
 // Millis at last value handled (but maybe not sent?)
 long lastMillis;
 
 // We only care about limited precision in our readings so fix so all match
-float fixValue(float value) {
-  int adjust = valueScale * 10;
-  return std::ceil(value * adjust)/adjust;
+value_t fixValue(float value) {
+  return std::round(value * valueScale);
+}
+
+// Float representation of value_t
+float floatOf(value_t value) {
+  return float(value)/valueScale;
+}
+
+// Ignore small differences
+bool isChanged(value_t v1, value_t v2) {
+  value_t delta = std::abs(v1-v2);
+  return (delta > EPSILON) || delta > 0 && v2 == 0;
 }
 
 void setState() {
@@ -231,16 +245,16 @@ void loop() {
 
   float* nextValue = pLoadCell->getData();
   if (nextValue) {
-    float fixedNextValue = fixValue(*nextValue);
-    if (lastValue != fixedNextValue) {
-      Serial.printf("%ld Data = %f\n", millis() - lastMillis, fixedNextValue);
+    value_t fixedNextValue = fixValue(*nextValue);
+    if (isChanged(lastValue, fixedNextValue)) {
+      Serial.printf("%ld Data = %f %d (%f)\n", millis() - lastMillis, floatOf(fixedNextValue), fixedNextValue, *nextValue);
       lastValue = fixedNextValue;
       lastMillis = millis();
 
       // notify changed value
       if (deviceConnected) {
-        notifyValue = std::round(lastValue * valueScale * 10);
-        pCountCharacteristic->setValue((uint8_t*)&notifyValue, 2);
+        notifyValue = fixedNextValue;
+        pCountCharacteristic->setValue((uint8_t*)&notifyValue, sizeof(value_t));
         pCountCharacteristic->notify();
         delay(3); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
       }
