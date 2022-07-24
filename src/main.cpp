@@ -23,7 +23,7 @@
 #include <BLE2902.h>
 #include <BLE2904.h>
 #include <HX711_ADC.h>
-#include <ezButton.h>
+#include "OneButton.h"
 
 #include "LoadCell.h"
 
@@ -82,7 +82,7 @@ const int LED_CONNECTED = LED_GREEN;
 const int BUZZER = 13;
 
 LoadCell* pLoadCell;
-ezButton tareRequestButton(TARE_REQUEST);
+OneButton tareRequestButton(TARE_REQUEST);
 
 // Tilt stuff
 int lastTiltRead=0;
@@ -111,6 +111,10 @@ void setState() {
   tone(BUZZER, deviceConnected ? 440 : 150, 250);
 }
 
+void doTare() {
+  pLoadCell->tare();
+}
+
 bool tilt() {
   int newTiltRead = digitalRead(TILT);
   bool tilt = false;
@@ -132,12 +136,12 @@ void setup() {
 
   pinMode(TILT, INPUT_PULLUP);
 
-  // Setup tare request
-  pinMode(TARE_REQUEST, INPUT_PULLUP);
-  tareRequestButton.setDebounceTime(10);
-
   // Setup load cell
   pLoadCell = new LoadCellHX711ADC(HX711_dout, HX711_sck);
+
+  // Setup tare request
+  pinMode(TARE_REQUEST, INPUT_PULLUP);
+  tareRequestButton.attachClick(doTare);
 
   // Create the BLE Device
   BLEDevice::init("Bandy");
@@ -223,13 +227,6 @@ void loop() {
   //!!!! Test out touch
   //digitalWrite(LED_BUILTIN, touchRead(T0) < threshold ? HIGH : LOW);
 
-  // Check for Tare request
-  tareRequestButton.loop();
-  if (tareRequestButton.isPressed()) {
-    printf("%ld Tare requested\n", millis());
-    pLoadCell->tare();
-  }
-
   // Get a scale reading if ready
 
   float* nextValue = pLoadCell->getData();
@@ -250,6 +247,9 @@ void loop() {
     }
   }
 
+  // Tare button handling
+  tareRequestButton.tick();
+  
   // Check the tilt
   // We only care about a change in tilt
   if (tilt()) {
