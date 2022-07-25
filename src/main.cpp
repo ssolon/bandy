@@ -25,6 +25,7 @@
 #include <HX711_ADC.h>
 #include "OneButton.h"
 
+#include <setup_time.h>
 #include "LoadCell.h"
 
 BLEServer* pServer = NULL;
@@ -100,8 +101,15 @@ const value_t EPSILON = std::round(0.1f * valueScale);
 value_t lastValue = 0;
 value_t notifyValue = 0;
 
+// Explicitly request a notification
+bool notify = false;
+
+// Millis last time we did something
+unsigned long lastMillis;
+
 // Millis at last value handled (but maybe not sent?)
-long lastMillis;
+unsigned long lastValueMillis;
+const unsigned long minIntervalToSend = 0;
 
 // We only care about limited precision in our readings so fix so all match
 value_t fixValue(float value) {
@@ -125,12 +133,34 @@ void setState() {
   tone(BUZZER, deviceConnected ? 440 : 150, 250);
 }
 
+void flicker(int pin) {
+  ledcAttachPin(pin, 0);
+  int channel = 0;
+  int freq = 1;
+  int resolution = 12;
+  int result=ledcSetup(channel, freq, resolution);
+  ledcWrite(0, 128);
+}
+
 void doTare() {
   pLoadCell->tare();
 }
 
+int testLastChangeMillis = 0;
+int testLastRead=0;;
+
 bool tilt() {
   int newTiltRead = digitalRead(TILT);
+
+//#define TEST_TILT 
+#ifdef TEST_TILT
+  if (newTiltRead != testLastRead) {
+    Serial.printf("delta=%ld %d -> %d\n", millis() - testLastChangeMillis, testLastRead, newTiltRead);
+    testLastChangeMillis = millis();
+    testLastRead = newTiltRead;
+  }
+#endif
+
   bool tilt = false;
 
   if (lastTiltRead != newTiltRead && (millis() - lastTiltTime) > tiltDebounce) {
@@ -144,12 +174,13 @@ bool tilt() {
 
 void setup() {
   Serial.begin(115200);
+
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(LED_WAITING, OUTPUT);
   pinMode(LED_CONNECTED, OUTPUT);
 
   pinMode(TILT, INPUT_PULLUP);
-
+  
   // Setup load cell
   pLoadCell = new LoadCellHX711ADC(HX711_dout, HX711_sck);
 
@@ -216,11 +247,15 @@ void setup() {
   Serial.println("Waiting a client connection to notify...");
   setState();
   lastMillis = millis();
+  
 }
 
 
+void junk() {
+}
+
 void loop() {
-  
+  digitalWrite(BUILTIN_LED, HIGH);
   // disconnecting
   if (!deviceConnected && oldDeviceConnected) {
     setState();
@@ -229,55 +264,80 @@ void loop() {
     Serial.println("Restart advertising");
     oldDeviceConnected = deviceConnected;
   }
-  
+ 
   // connecting
   if (deviceConnected && !oldDeviceConnected) {
         // do stuff here on connecting
         Serial.println("Client connected");
         oldDeviceConnected = deviceConnected;
         setState();
-        lastValue = 0.0; // Trigger the first update -- but it doesn't seem to work
+        notify = true;
   }
   //!!!! Test out touch
   //digitalWrite(LED_BUILTIN, touchRead(T0) < threshold ? HIGH : LOW);
 
   // Get a scale reading if ready
 
+  float testValue = 1.0f;
   float* nextValue = pLoadCell->getData();
   if (nextValue) {
+    if (pLoadCell->timeout()) {
+      // TODO Report errors with an error characteristic?
+      Serial.println("!!!! LOADCELL TIMEOUT !!!!\n");
+    }
     value_t fixedNextValue = fixValue(*nextValue);
-    if (isChanged(lastValue, fixedNextValue)) {
-      Serial.printf("%ld Data = %f %d (%f)\n", millis() - lastMillis, floatOf(fixedNextValue), fixedNextValue, *nextValue);
+    // Serial.printf("%ld lastValue=%f fixedNextValue=%f\n", millis(), floatOf(lastValue), floatOf(fixedNextValue));
+
+    if (isChanged(notifyValue, fixedNextValue) || notify) {
+      notify = false;
+      unsigned long sinceLastSend = millis() - lastValueMillis;
+      // Serial.printf("%ld LastValue=%f Data = %f %d (%f)\n", millis() - lastValueMillis, floatOf(lastValue), floatOf(fixedNextValue), fixedNextValue, *nextValue);
       lastValue = fixedNextValue;
-      lastMillis = millis();
 
       // notify changed value
-      if (deviceConnected) {
-        notifyValue = fixedNextValue;
-        pCountCharacteristic->setValue((uint8_t*)&notifyValue, sizeof(value_t));
-        pCountCharacteristic->notify();
-        delay(3); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
-      }
-    }
-  }
 
+      if (deviceConnected && sinceLastSend > minIntervalToSend ) {
+        Serial.printf("%ld NotifyValue=%f fixedNextValue=%f\n", millis() - lastValueMillis, floatOf(notifyValue), floatOf(fixedNextValue));
+        if (notifyValue != fixedNextValue) { // Don't send if no change
+          notifyValue = fixedNextValue; 
+          pCountCharacteristic->setValue((uint8_t*)&notifyValue, sizeof(value_t));
+          pCountCharacteristic->notify(); // TODO BAD!!!!!!!!!
+          lastValueMillis = millis();
+          delay(3); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
+        }
+      }
+
+    }
+    
+
+  }
   // Tare button handling
   tareRequestButton.tick();
-  
+
   // Check the tilt
   // We only care about a change in tilt
   if (tilt()) {
-      // Serial.printf("%ld ____ Tilt ____\n", millis());
+  //!!!!    Serial.printf("%ld ____ Tilt ____\n", millis());
       digitalWrite(BUILTIN_LED, LOW);
   }
   
   // Sleep if we've been quiet for too long
-  if (millis() - lastMillis > sleepTimeoutMillis) {
-  //   // esp_deep_sleep_start();
-    lastMillis = millis();
+  //if (millis() - lastMillis > sleepTimeoutMillis) {
+    //!!!! Start by just using tilt millis for sleep
+  if (millis() - lastTiltTime > sleepTimeoutMillis) {
+    const uint32_t LIGHT_SLEEP_TIMEOUT_USECS = 2 * 1000000;
+    esp_sleep_enable_timer_wakeup(LIGHT_SLEEP_TIMEOUT_USECS);
+//!!!!    Serial.println("Light sleep");
     digitalWrite(BUILTIN_LED, HIGH);
+    // esp_light_sleep_start();
+//!!!    Serial.println("Wakeup");
+    digitalWrite(BUILTIN_LED, LOW);
+    lastTiltTime = millis();
+    // esp_deep_sleep_start();
+    lastMillis = millis();
   }
 
   // TODO Come up with a good value for this
-  // delay(500);
+  //delay(500);
+  
 }

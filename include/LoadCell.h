@@ -11,6 +11,7 @@ class LoadCell {
 
     virtual float* getData() = 0;
     virtual void tare() = 0;
+    virtual bool timeout() = 0;
 };
 
 class LoadCellHX711ADC : public LoadCell {
@@ -27,6 +28,9 @@ class LoadCellHX711ADC : public LoadCell {
     pLoadCell->tare();
   }
 
+  virtual bool timeout() {
+    return pLoadCell->getSignalTimeoutFlag();
+  }
   LoadCellHX711ADC(uint8_t clockPin, uint8_t dataPin);
 };
 
