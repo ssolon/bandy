@@ -25,7 +25,6 @@
 #include <HX711_ADC.h>
 #include "OneButton.h"
 
-#include <setup_time.h>
 #include "LoadCell.h"
 
 BLEServer* pServer = NULL;
@@ -250,12 +249,8 @@ void setup() {
   
 }
 
-
-void junk() {
-}
-
 void loop() {
-  digitalWrite(BUILTIN_LED, HIGH);
+
   // disconnecting
   if (!deviceConnected && oldDeviceConnected) {
     setState();
@@ -278,20 +273,18 @@ void loop() {
 
   // Get a scale reading if ready
 
-  float testValue = 1.0f;
   float* nextValue = pLoadCell->getData();
   if (nextValue) {
     if (pLoadCell->timeout()) {
       // TODO Report errors with an error characteristic?
       Serial.println("!!!! LOADCELL TIMEOUT !!!!\n");
     }
-    value_t fixedNextValue = fixValue(*nextValue);
-    // Serial.printf("%ld lastValue=%f fixedNextValue=%f\n", millis(), floatOf(lastValue), floatOf(fixedNextValue));
 
+    value_t fixedNextValue = fixValue(*nextValue);
     if (isChanged(notifyValue, fixedNextValue) || notify) {
+
       notify = false;
       unsigned long sinceLastSend = millis() - lastValueMillis;
-      // Serial.printf("%ld LastValue=%f Data = %f %d (%f)\n", millis() - lastValueMillis, floatOf(lastValue), floatOf(fixedNextValue), fixedNextValue, *nextValue);
       lastValue = fixedNextValue;
 
       // notify changed value
@@ -301,16 +294,15 @@ void loop() {
         if (notifyValue != fixedNextValue) { // Don't send if no change
           notifyValue = fixedNextValue; 
           pCountCharacteristic->setValue((uint8_t*)&notifyValue, sizeof(value_t));
-          pCountCharacteristic->notify(); // TODO BAD!!!!!!!!!
+          pCountCharacteristic->notify();
           lastValueMillis = millis();
           delay(3); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
         }
       }
 
     }
-    
-
   }
+  
   // Tare button handling
   tareRequestButton.tick();
 
