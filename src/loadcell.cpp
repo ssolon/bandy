@@ -25,15 +25,15 @@ LoadCellHX711ADC::LoadCellHX711ADC(uint8_t dout, uint8_t sck) {
 
   pLoadCell->begin();
   //loadCell->setReverseOutput();
-  unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
+  unsigned long stabilizingtime = 3000; // tare preciscion can be improved by adding a few seconds of stabilizing time
   boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
+  pLoadCell->setCalFactor(calibrationValue); // set calibration factor (float)
   pLoadCell->start(stabilizingtime, _tare);
   if (pLoadCell->getTareTimeoutFlag()) {
     Serial.println("Timeout, check MCU>HX711 wiring and pin designations");
   }
   else {
-    pLoadCell->setCalFactor(calibrationValue); // set calibration factor (float)
-    Serial.println("Startup is complete");
+     Serial.println("Startup is complete");
   }
   while (!pLoadCell->update());
   Serial.print("Calibration value: ");

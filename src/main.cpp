@@ -73,7 +73,9 @@ const int LED_GREEN = 17;
 const int HX711_dout = 23; //mcu > HX711 dout pin
 const int HX711_sck = 22; //mcu > HX711 sck pin
 
-const int TARE_REQUEST = 32;
+const gpio_num_t WAKEUP_BUTTON = GPIO_NUM_32;
+
+const int TARE_REQUEST = (int)WAKEUP_BUTTON;
 const int TILT = 33;
 
 const int LED_WAITING = LED_RED;
@@ -145,6 +147,19 @@ void doTare() {
   pLoadCell->tare();
 }
 
+void setupDeepSleep() {
+  pLoadCell->powerDown();
+  tone(BUZZER, 75, 250);
+  delay(250);
+}
+
+void startDeepSleep() {
+  // BLEDevice::deinit();
+  esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER); // Cause it keeps waking us up 
+  esp_sleep_enable_ext0_wakeup(WAKEUP_BUTTON, 0);
+  esp_deep_sleep_start();
+}
+
 int testLastChangeMillis = 0;
 int testLastRead=0;;
 
@@ -171,8 +186,25 @@ bool tilt() {
   return tilt;
 }
 
+void print_wakeup_reason(){
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch(wakeup_reason){
+    case ESP_SLEEP_WAKEUP_EXT0 : Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1 : Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER : Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP : Serial.println("Wakeup caused by ULP program"); break;
+    default : Serial.printf("Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
+  }
+}
+
 void setup() {
   Serial.begin(115200);
+
+  print_wakeup_reason();
 
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(LED_WAITING, OUTPUT);
@@ -182,10 +214,16 @@ void setup() {
   
   // Setup load cell
   pLoadCell = new LoadCellHX711ADC(HX711_dout, HX711_sck);
+  
+  // Seems to clear up problems when waking up from sleep and shoudn't hurt otherwise
+  // pLoadCell->powerDown();
+  // pLoadCell->powerUp();
 
   // Setup tare request
   pinMode(TARE_REQUEST, INPUT_PULLUP);
   tareRequestButton.attachClick(doTare);
+  tareRequestButton.attachLongPressStart(setupDeepSleep);
+  tareRequestButton.attachLongPressStop(startDeepSleep);
 
   // Create the BLE Device
   BLEDevice::init("Bandy");
@@ -258,15 +296,17 @@ void loop() {
     pServer->startAdvertising(); // restart advertising
     Serial.println("Restart advertising");
     oldDeviceConnected = deviceConnected;
+    notifyValue = 0;
   }
  
   // connecting
   if (deviceConnected && !oldDeviceConnected) {
-        // do stuff here on connecting
-        Serial.println("Client connected");
-        oldDeviceConnected = deviceConnected;
-        setState();
-        notify = true;
+    // do stuff here on connecting
+    Serial.println("Client connected");
+    oldDeviceConnected = deviceConnected;
+    setState();
+    notifyValue = 0;
+    notify = true;
   }
   //!!!! Test out touch
   //digitalWrite(LED_BUILTIN, touchRead(T0) < threshold ? HIGH : LOW);
@@ -282,6 +322,7 @@ void loop() {
 
     value_t fixedNextValue = fixValue(*nextValue);
     if (isChanged(notifyValue, fixedNextValue) || notify) {
+      // Serial.printf("notifyValue=%f fixedNextValue=%f\n", floatOf(notifyValue), floatOf(fixedNextValue));
 
       notify = false;
       unsigned long sinceLastSend = millis() - lastValueMillis;
@@ -302,7 +343,7 @@ void loop() {
 
     }
   }
-  
+
   // Tare button handling
   tareRequestButton.tick();
 
