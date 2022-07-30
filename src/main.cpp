@@ -127,7 +127,7 @@ bool isChanged(value_t v1, value_t v2) {
   value_t delta = std::abs(v1-v2);
   return (delta > EPSILON) || delta > 0 && v2 == 0;
 }
-
+  
 void setState() {
   digitalWrite(LED_WAITING, deviceConnected ? LOW : HIGH);
   digitalWrite(LED_CONNECTED, deviceConnected ? HIGH : LOW);
@@ -169,7 +169,12 @@ bool tilt() {
 //#define TEST_TILT 
 #ifdef TEST_TILT
   if (newTiltRead != testLastRead) {
-    Serial.printf("delta=%ld %d -> %d\n", millis() - testLastChangeMillis, testLastRead, newTiltRead);
+    Serial.print("delta=");
+    Serial.print(millis() - testLastChangeMillis);
+    Serial.print(" ");
+    Serial.print(testLastRead);
+    Serial.print(" -> ");
+    Serial.println(newTiltRead);
     testLastChangeMillis = millis();
     testLastRead = newTiltRead;
   }
@@ -197,7 +202,7 @@ void print_wakeup_reason(){
     case ESP_SLEEP_WAKEUP_TIMER : Serial.println("Wakeup caused by timer"); break;
     case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad"); break;
     case ESP_SLEEP_WAKEUP_ULP : Serial.println("Wakeup caused by ULP program"); break;
-    default : Serial.printf("Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
+    default : Serial.print("Wakeup was not caused by deep sleep: "); Serial.println(wakeup_reason); break;
   }
 }
 
@@ -331,7 +336,11 @@ void loop() {
       // notify changed value
 
       if (deviceConnected && sinceLastSend > minIntervalToSend ) {
-        Serial.printf("%ld NotifyValue=%f fixedNextValue=%f\n", millis() - lastValueMillis, floatOf(notifyValue), floatOf(fixedNextValue));
+        Serial.print(millis() - lastValueMillis);
+        Serial.print(" NotifyValue=");
+        Serial.print(floatOf(notifyValue));
+        Serial.print(" fixedNextValue=");
+        Serial.println(floatOf(fixedNextValue));
         if (notifyValue != fixedNextValue) { // Don't send if no change
           notifyValue = fixedNextValue; 
           pCountCharacteristic->setValue((uint8_t*)&notifyValue, sizeof(value_t));
