@@ -154,7 +154,7 @@ void setupDeepSleep() {
 }
 
 void startDeepSleep() {
-  // BLEDevice::deinit();
+  BLEDevice::deinit();
   esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER); // Cause it keeps waking us up 
   esp_sleep_enable_ext0_wakeup(WAKEUP_BUTTON, 0);
   esp_deep_sleep_start();
