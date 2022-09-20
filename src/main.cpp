@@ -102,6 +102,10 @@ const value_t EPSILON = std::round(0.1f * valueScale);
 value_t lastValue = 0;
 value_t notifyValue = 0;
 
+#ifdef LOG_RAW_VALUES
+float rawLastValue = 0.0;
+#endif
+
 // Explicitly request a notification
 bool notify = false;
 
@@ -326,6 +330,18 @@ void loop() {
     }
 
     value_t fixedNextValue = fixValue(*nextValue);
+
+#ifdef LOG_RAW_VALUES
+    //!!!! For testing let's see how the values "vary"
+    if (*nextValue != rawLastValue) {
+      Serial.print(millis());
+      Serial.print("\t");
+      Serial.println(rawLastValue);
+      rawLastValue = *nextValue;
+    }
+    //!!!! end testing
+#endif
+
     if (isChanged(notifyValue, fixedNextValue) || notify) {
       // Serial.printf("notifyValue=%f fixedNextValue=%f\n", floatOf(notifyValue), floatOf(fixedNextValue));
 
