@@ -377,8 +377,9 @@ void loop() {
   // Check the tilt
   // We only care about a change in tilt
   if (tilt()) {
-  //!!!!    Serial.printf("%ld ____ Tilt ____\n", millis());
-      digitalWrite(BUILTIN_LED, LOW);
+    Serial.print("____ Tilt ____");
+    Serial.println(millis());
+    //digitalWrite(BUILTIN_LED, LOW);
   }
   
   // Sleep if we've been quiet for too long
