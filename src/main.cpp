@@ -70,8 +70,8 @@ const int threshold = 30;
 const int LED_RED = 16;
 const int LED_GREEN = 17;
 
-const int HX711_dout = 23; //mcu > HX711 dout pin
-const int HX711_sck = 22; //mcu > HX711 sck pin
+const int HX711_dout = 25; //mcu > HX711 dout pin
+const int HX711_sck = 26; //mcu > HX711 sck pin
 
 const gpio_num_t WAKEUP_BUTTON = GPIO_NUM_32;
 
