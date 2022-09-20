@@ -352,11 +352,13 @@ void loop() {
       // notify changed value
 
       if (deviceConnected && sinceLastSend > minIntervalToSend ) {
+#ifdef LOG_NOTIFY
         Serial.print(millis() - lastValueMillis);
         Serial.print(" NotifyValue=");
         Serial.print(floatOf(notifyValue));
         Serial.print(" fixedNextValue=");
         Serial.println(floatOf(fixedNextValue));
+#endif
         if (notifyValue != fixedNextValue) { // Don't send if no change
           notifyValue = fixedNextValue; 
           pCountCharacteristic->setValue((uint8_t*)&notifyValue, sizeof(value_t));
