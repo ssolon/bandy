@@ -70,8 +70,8 @@ const int threshold = 30;
 const int LED_RED = 16;
 const int LED_GREEN = 17;
 
-const int HX711_dout = 25; //mcu > HX711 dout pin
-const int HX711_sck = 26; //mcu > HX711 sck pin
+const int HX711_dout = 26; //mcu > HX711 dout pin
+const int HX711_sck = 25; //mcu > HX711 sck pin
 
 const gpio_num_t WAKEUP_BUTTON = GPIO_NUM_32;
 
@@ -101,6 +101,8 @@ const value_t EPSILON = std::round(0.1f * valueScale);
 // Last value read (but maybe not sent?)
 value_t lastValue = 0;
 value_t notifyValue = 0;
+
+//#define LOG_RAW_VALUES
 
 #ifdef LOG_RAW_VALUES
 float rawLastValue = 0.0;
@@ -330,7 +332,6 @@ void loop() {
     }
 
     value_t fixedNextValue = fixValue(*nextValue);
-
 #ifdef LOG_RAW_VALUES
     //!!!! For testing let's see how the values "vary"
     if (*nextValue != rawLastValue) {
