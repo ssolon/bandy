@@ -17,7 +17,8 @@ LoadCellHX711ADC::LoadCellHX711ADC(uint8_t dout, uint8_t sck) {
   // Setup copied from hx711-adc example code
 
   float calibrationValue; // calibration value
-  calibrationValue = -18270.29;
+  // breadoard calibrationValue = -18270.29;
+  calibrationValue = -21009.54;
   //!!!!calibrationValue = 26983.9; //43782; // 696.0; // uncomment this if you want to set this value in the sketch
 #if defined(ESP8266) || defined(ESP32)
   //EEPROM.begin(512); // uncomment this if you use ESP8266 and want to fetch this value from eeprom
