@@ -29,7 +29,7 @@
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pBatteryLevelCharacteristic = NULL;
-BLECharacteristic* pCountCharacteristic = NULL;
+BLECharacteristic* pResistanceCharacteristic = NULL;
 
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
@@ -258,7 +258,7 @@ void setup() {
   BLEService *pService = pServer->createService(fitnessServiceUUID);
 
   // Create a BLE Characteristic
-  pCountCharacteristic = pService->createCharacteristic(
+  pResistanceCharacteristic = pService->createCharacteristic(
                       resistanceCharacteristicUUID,
                       // BLECharacteristic::PROPERTY_READ   |
                       // BLECharacteristic::PROPERTY_WRITE  |
@@ -268,17 +268,17 @@ void setup() {
 
   // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
   // Create a BLE Descriptor
-  pCountCharacteristic->addDescriptor(new BLE2902());
+  pResistanceCharacteristic->addDescriptor(new BLE2902());
 
-  BLE2904* pCountDescriptor = new BLE2904();
-  pCountDescriptor->setFormat(BLE2904::FORMAT_SINT16);
-  pCountDescriptor->setUnit(GATT_UNIT_MASS_KILOGRAM);
-  pCountDescriptor->setExponent(-valueScale);
-  pCountCharacteristic->addDescriptor(pCountDescriptor);
+  BLE2904* pResistanceDescriptor = new BLE2904();
+  pResistanceDescriptor->setFormat(BLE2904::FORMAT_SINT16);
+  pResistanceDescriptor->setUnit(GATT_UNIT_MASS_KILOGRAM);
+  pResistanceDescriptor->setExponent(-valueScale);
+  pResistanceCharacteristic->addDescriptor(pResistanceDescriptor);
 
-  BLEDescriptor* pCountDescriptionDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901), 8);
-  pCountDescriptionDescriptor->setValue("Resist");
-  pCountCharacteristic->addDescriptor(pCountDescriptionDescriptor);
+  BLEDescriptor* pResistanceDescriptionDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901), 8);
+  pResistanceDescriptionDescriptor->setValue("Resist");
+  pResistanceCharacteristic->addDescriptor(pResistanceDescriptionDescriptor);
 
   // Start the service(s)
   pService->start();
@@ -362,8 +362,8 @@ void loop() {
 #endif
         if (notifyValue != fixedNextValue) { // Don't send if no change
           notifyValue = fixedNextValue; 
-          pCountCharacteristic->setValue((uint8_t*)&notifyValue, sizeof(value_t));
-          pCountCharacteristic->notify();
+          pResistanceCharacteristic->setValue((uint8_t*)&notifyValue, sizeof(value_t));
+          pResistanceCharacteristic->notify();
           lastValueMillis = millis();
           delay(3); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
         }
