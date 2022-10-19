@@ -266,7 +266,7 @@ void setup() {
   // Create a BLE Characteristic
   pResistanceCharacteristic = pService->createCharacteristic(
                       resistanceCharacteristicUUID,
-                      // BLECharacteristic::PROPERTY_READ   |
+                      BLECharacteristic::PROPERTY_READ   |
                       // BLECharacteristic::PROPERTY_WRITE  |
                       BLECharacteristic::PROPERTY_NOTIFY //|
                       // BLECharacteristic::PROPERTY_INDICATE
