@@ -67,21 +67,23 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
 //pins:
 const int threshold = 30;
-const int LED_RED = 16;
-const int LED_GREEN = 17;
+const int LED_YELLOW = 17;
+const int LED_GREEN = 16;
 
 const int HX711_dout = 26; //mcu > HX711 dout pin
 const int HX711_sck = 25; //mcu > HX711 sck pin
 
-const gpio_num_t WAKEUP_BUTTON = GPIO_NUM_32;
+const gpio_num_t WAKEUP_BUTTON = GPIO_NUM_18;
 
 const int TARE_REQUEST = (int)WAKEUP_BUTTON;
 const int TILT = 33;
 
-const int LED_WAITING = LED_RED;
+const int LED_WAITING = LED_YELLOW;
 const int LED_CONNECTED = LED_GREEN;
 
+#ifdef HAS_BUZZER
 const int BUZZER = 13;
+#endif
 
 LoadCell* pLoadCell;
 OneButton tareRequestButton(TARE_REQUEST);
@@ -137,7 +139,9 @@ bool isChanged(value_t v1, value_t v2) {
 void setState() {
   digitalWrite(LED_WAITING, deviceConnected ? LOW : HIGH);
   digitalWrite(LED_CONNECTED, deviceConnected ? HIGH : LOW);
+#ifdef HAS_BUZZER
   tone(BUZZER, deviceConnected ? 440 : 150, 250);
+#endif
 }
 
 void flicker(int pin) {
@@ -155,7 +159,9 @@ void doTare() {
 
 void setupDeepSleep() {
   pLoadCell->powerDown();
+#ifdef HAS_BUZZER
   tone(BUZZER, 75, 250);
+#endif
   delay(250);
 }
 
