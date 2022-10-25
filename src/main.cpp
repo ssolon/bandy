@@ -67,11 +67,18 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
 //pins:
 const int threshold = 30;
+
 const int LED_YELLOW = 17;
 const int LED_GREEN = 16;
 
 const int HX711_dout = 26; //mcu > HX711 dout pin
 const int HX711_sck = 25; //mcu > HX711 sck pin
+
+// I2C Pins
+const int BANDY_SDA = 22;
+const int BANDY_SDL = 23;
+
+const int MPU6050_INT = 21; // Interrupt pin
 
 const gpio_num_t WAKEUP_BUTTON = GPIO_NUM_18;
 
