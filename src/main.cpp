@@ -227,6 +227,7 @@ void print_wakeup_reason(){
 
 void setup() {
   Serial.begin(115200);
+  setCpuFrequencyMhz(80);
 
   print_wakeup_reason();
 
