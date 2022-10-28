@@ -30,6 +30,7 @@
 BLEServer* pServer = NULL;
 BLECharacteristic* pBatteryLevelCharacteristic = NULL;
 BLECharacteristic* pResistanceCharacteristic = NULL;
+BLECharacteristic* pButton1Characteristic = NULL;
 
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
@@ -53,6 +54,7 @@ const BLEUUID batteryLevelUUID = BLEUUID((uint16_t) 0x2a19);
 
 const BLEUUID fitnessServiceUUID = BLEUUID((uint16_t)0x1826);
 const BLEUUID resistanceCharacteristicUUID = BLEUUID("a6351a0c-f7e0-11ec-b939-0242ac120002");
+const BLEUUID button1CharacteristicUUID = BLEUUID("5b0d3458-d6f5-4ac4-936b-18654e9db83b");
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
@@ -80,11 +82,10 @@ const int BANDY_SDL = 23;
 
 const int MPU6050_INT = 32; // Interrupt pin
 
-const gpio_num_t BUTTON_0 = GPIO_NUM_33;
+const gpio_num_t BUTTON_1 = GPIO_NUM_33;
 
-const gpio_num_t WAKEUP_BUTTON = BUTTON_0;
+const gpio_num_t WAKEUP_BUTTON = BUTTON_1;
 
-const int TARE_REQUEST = (int)WAKEUP_BUTTON;
 const int TILT = MPU6050_INT;
 
 const int LED_WAITING = LED_YELLOW;
@@ -95,7 +96,7 @@ const int BUZZER = 13;
 #endif
 
 LoadCell* pLoadCell;
-OneButton tareRequestButton(TARE_REQUEST);
+OneButton button1(BUTTON_1);
 
 // Tilt stuff
 int lastTiltRead=0;
@@ -112,6 +113,12 @@ const value_t EPSILON = std::round(0.1f * valueScale);
 // Last value read (but maybe not sent?)
 value_t lastValue = 0;
 value_t notifyValue = 0;
+
+// Types for buttons
+typedef uint8_t boolean_t;
+typedef boolean_t buttonValue_t;
+
+boolean_t button1Value = true;
 
 //#define LOG_RAW_VALUES
 
@@ -181,6 +188,25 @@ void startDeepSleep() {
   esp_deep_sleep_start();
 }
 
+void button1Click() {
+  if (deviceConnected) {
+    Serial.println("Notify button1Click");
+    pButton1Characteristic->setValue((uint8_t*)&button1Value, sizeof(button1Value));
+    pButton1Characteristic->notify();
+  }
+}
+void button1DoubleClick() {
+  doTare();
+}
+
+void button1LongPressStart() {
+  setupDeepSleep();
+}
+
+void button1LongPressEnd() {
+  startDeepSleep();
+}
+
 int testLastChangeMillis = 0;
 int testLastRead=0;;
 
@@ -247,11 +273,12 @@ void setup() {
   // pLoadCell->powerUp();
 
   // Setup tare request
-  pinMode(TARE_REQUEST, INPUT_PULLUP);
-  tareRequestButton.attachClick(doTare);
-  tareRequestButton.attachLongPressStart(setupDeepSleep);
-  tareRequestButton.attachLongPressStop(startDeepSleep);
-
+  pinMode(BUTTON_1, INPUT_PULLUP);
+  button1.attachClick(button1Click);
+  button1.attachDoubleClick(button1DoubleClick);
+  button1.attachLongPressStart(button1LongPressStart);
+  button1.attachLongPressStop(button1LongPressEnd);
+  
   // Create the BLE Device
   BLEDevice::init("Bandy");
 
@@ -270,10 +297,11 @@ void setup() {
   // Static initialization for now
   pBatteryLevelCharacteristic->setValue((uint8_t*)&batteryLevel, 1);
 
-  // Create the BLE Service
+  // Create the fitness Service
   BLEService *pService = pServer->createService(fitnessServiceUUID);
 
-  // Create a BLE Characteristic
+  // Create Resistance Characteristic
+  
   pResistanceCharacteristic = pService->createCharacteristic(
                       resistanceCharacteristicUUID,
                       BLECharacteristic::PROPERTY_READ   |
@@ -281,7 +309,7 @@ void setup() {
                       BLECharacteristic::PROPERTY_NOTIFY //|
                       // BLECharacteristic::PROPERTY_INDICATE
                     );
-
+  
   // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
   // Create a BLE Descriptor
   pResistanceCharacteristic->addDescriptor(new BLE2902());
@@ -295,6 +323,24 @@ void setup() {
   BLEDescriptor* pResistanceDescriptionDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901), 8);
   pResistanceDescriptionDescriptor->setValue("Resist");
   pResistanceCharacteristic->addDescriptor(pResistanceDescriptionDescriptor);
+
+  // Create Button1 characteristic. Will notify on click
+
+  pButton1Characteristic = pService->createCharacteristic(
+    button1CharacteristicUUID,
+    BLECharacteristic::PROPERTY_READ |
+    BLECharacteristic::PROPERTY_NOTIFY
+  );
+
+  pButton1Characteristic->addDescriptor(new BLE2902());
+
+  BLE2904* pButton1Descriptor = new BLE2904();
+  pButton1Descriptor->setFormat(BLE2904::FORMAT_UINT8);
+  pButton1Characteristic->addDescriptor(pButton1Descriptor);
+
+  BLEDescriptor* pButton1DescriptionDescriptor = new BLEDescriptor(BLEUUID((uint16_t)0x2901), 8);
+  pButton1DescriptionDescriptor->setValue("Button1");
+  pButton1Characteristic->addDescriptor(pButton1DescriptionDescriptor);
 
   // Start the service(s)
   pService->start();
@@ -389,7 +435,7 @@ void loop() {
   }
 
   // Tare button handling
-  tareRequestButton.tick();
+  button1.tick();
 
   // Check the tilt
   // We only care about a change in tilt
