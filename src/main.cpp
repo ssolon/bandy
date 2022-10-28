@@ -78,12 +78,14 @@ const int HX711_sck = 25; //mcu > HX711 sck pin
 const int BANDY_SDA = 22;
 const int BANDY_SDL = 23;
 
-const int MPU6050_INT = 21; // Interrupt pin
+const int MPU6050_INT = 32; // Interrupt pin
 
-const gpio_num_t WAKEUP_BUTTON = GPIO_NUM_18;
+const gpio_num_t BUTTON_0 = GPIO_NUM_33;
+
+const gpio_num_t WAKEUP_BUTTON = BUTTON_0;
 
 const int TARE_REQUEST = (int)WAKEUP_BUTTON;
-const int TILT = 33;
+const int TILT = MPU6050_INT;
 
 const int LED_WAITING = LED_YELLOW;
 const int LED_CONNECTED = LED_GREEN;
